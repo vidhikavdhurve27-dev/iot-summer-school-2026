@@ -1,3 +1,22 @@
+# Arduino Compiled Output Files
+*.hex
+*.elf
+*.bin
+*.eep
+*.lst
+
+# Operating System Specific Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE Configuration and Build Directories
+.vscode/
+build/
+.clion.source.dir
+cmake-build-*/
+
 # Prerequisites
 *.d
 
