@@ -4,7 +4,7 @@
   * Author: Vidhika Vilas Dhurve
   * Date: 02 July 2026
   * Brief: Led blinking controller using a potentiometer and serial tracking
-  * Fixes #1
+  * Fixes #2
   */
 
 int blinkCount = 0;
