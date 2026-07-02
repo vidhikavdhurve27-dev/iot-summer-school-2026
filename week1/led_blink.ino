@@ -3,7 +3,8 @@
   * File led_blink.ino
   * Author: Vidhika Vilas Dhurve
   * Date: 02 July 2026
-  * Brief: Led blinking controller using a potentiometer and serial tracking 
+  * Brief: Led blinking controller using a potentiometer and serial tracking
+  * Fixes #1
   */
 
 int blinkCount = 0;
