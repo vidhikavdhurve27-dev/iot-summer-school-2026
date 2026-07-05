@@ -1,51 +1,41 @@
-/**
- * digital_piano.ino
- */
+// Pin Definitions
+const int BTN_DO = 2;
+const int BTN_RE = 3;
+const int BTN_MI = 4;
+const int BTN_FA = 5;
+const int BUZZER_PIN = 9;
 
-const int PIN_BUZZER = 3;
-const int BTN_PINS[4] = {4, 5, 6, 8}; // Key buttons 1 to 4
-const int PIN_TOGGLE = 9;             // 5th Button for Scale Mode
-
-// Tone mappings: Index 0-3 are Do, Re, Mi, Fa. Index 4 is Sol.
-int majorNotes[5] = {262, 294, 330, 349, 392}; // Standard Major
-int minorNotes[5] = {262, 294, 311, 349, 392}; // Minor Scale (Flat 3rd: Mi drops to 311Hz)
+// Note Frequencies (Hz)
+const int NOTE_DO = 262;
+const int NOTE_RE = 294;
+const int NOTE_MI = 330;
+const int NOTE_FA = 349;
 
 void setup() {
-  pinMode(PIN_BUZZER, OUTPUT);
-  for (int i = 0; i < 4; i++) {
-    pinMode(BTN_PINS[i], INPUT_PULLUP);
-  }
-  pinMode(PIN_TOGGLE, INPUT_PULLUP);
+  pinMode(BTN_DO, INPUT_PULLUP);
+  pinMode(BTN_RE, INPUT_PULLUP);
+  pinMode(BTN_MI, INPUT_PULLUP);
+  pinMode(BTN_FA, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
 }
 
 void loop() {
-  bool btnState[4];
-  int activeCount = 0;
-  
-  // Read inputs (LOW means active/pressed due to INPUT_PULLUP)
-  for (int i = 0; i < 4; i++) {
-    btnState[i] = (digitalRead(BTN_PINS[i]) == LOW);
-    if (btnState[i]) activeCount++;
-  }
-  
-  bool isMinor = (digitalRead(PIN_TOGGLE) == LOW);
-  int* currentScale = isMinor ? minorNotes : majorNotes;
+  // Read button states (LOW means pressed because of INPUT_PULLUP)
+  bool pressDo = (digitalRead(BTN_DO) == LOW);
+  bool pressRe = (digitalRead(BTN_RE) == LOW);
+  bool pressMi = (digitalRead(BTN_MI) == LOW);
+  bool pressFa = (digitalRead(BTN_FA) == LOW);
 
-  // Rule 1: Multi-press chord substitute
-  if (activeCount >= 2) {
-    tone(PIN_BUZZER, currentScale[4]); // Play Sol (392Hz)
-  } 
-  // Rule 2: Single note playback
-  else if (activeCount == 1) {
-    for (int i = 0; i < 4; i++) {
-      if (btnState[i]) {
-        tone(PIN_BUZZER, currentScale[i]);
-        break;
-      }
-    }
-  } 
-  // Rule 3: Mute on release
-  else {
-    noTone(PIN_BUZZER);
+  // Play highest priority single note, otherwise silence
+  if (pressDo) {
+    tone(BUZZER_PIN, NOTE_DO);
+  } else if (pressRe) {
+    tone(BUZZER_PIN, NOTE_RE);
+  } else if (pressMi) {
+    tone(BUZZER_PIN, NOTE_MI);
+  } else if (pressFa) {
+    tone(BUZZER_PIN, NOTE_FA);
+  } else {
+    noTone(BUZZER_PIN);
   }
 }
