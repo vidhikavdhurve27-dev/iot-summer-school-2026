@@ -16,101 +16,140 @@
  *  *Note: Pressing 'Cancel' at COIN_INSERTED or ITEM_SELECTED resets back to IDLE.
  */
 
-enum VendingState { IDLE, COIN_INSERTED, ITEM_SELECTED, DISPENSING };
+// ==========================================
+// 1. DATA TYPES & PROTOTYPES (Must be first for Tinkercad)
+// ==========================================
+enum VendingState { 
+  IDLE, 
+  COIN_INSERTED, 
+  ITEM_SELECTED, 
+  DISPENSING 
+};
+
+// Forward declaration tells loop() that this function exists later
+void changeState(VendingState newState);
+void updateHardwareIndicators();
+
+// ==========================================
+// 2. PIN DEFINITIONS & VARIABLES
+// ==========================================
+const int BTN_COIN        = 2; 
+const int BTN_ITEM_SELECT = 3; 
+const int BTN_CANCEL      = 4; 
+
+const int LED_RED    = 11; 
+const int LED_YELLOW = 12; 
+const int LED_GREEN  = 13; 
+
 VendingState currentState = IDLE;
 
-const int BTN_COIN = 4;
-const int BTN_SELECT = 5;
-const int BTN_CANCEL = 6;
+unsigned long stateStartTime = 0;
+const unsigned long DELAY_SELECT = 1500; 
+const unsigned long DELAY_DISPENSE = 3000; 
 
-const int LED_COIN = 10;     // Glows when a coin is stored
-const int LED_SELECT = 11;   // Glows when item choice is locked
-const int LED_DISPENSE = 12; // Glows while releasing product
+bool lastCoinState   = HIGH;
+bool lastSelectState = HIGH;
+bool lastCancelState = HIGH;
 
-unsigned long dispenseStartTime = 0;
-
-void transitionTo(VendingState newState, String context) {
-  currentState = newState;
-  Serial.print("[Transition] Event: "); Serial.print(context);
-  Serial.print(" -> State: ");
-  
-  // Reset all LEDs first
-  digitalWrite(LED_COIN, LOW);
-  digitalWrite(LED_SELECT, LOW);
-  digitalWrite(LED_DISPENSE, LOW);
-
-  switch (currentState) {
-    case IDLE:
-      Serial.println("IDLE (Awaiting transaction...)");
-      break;
-    case COIN_INSERTED:
-      Serial.println("COIN_INSERTED (Credits verified)");
-      digitalWrite(LED_COIN, HIGH);
-      break;
-    case ITEM_SELECTED:
-      Serial.println("ITEM_SELECTED (Inventory choice approved)");
-      digitalWrite(LED_SELECT, HIGH);
-      break;
-    case DISPENSING:
-      Serial.println("DISPENSING (Dropping component item)");
-      digitalWrite(LED_DISPENSE, HIGH);
-      dispenseStartTime = millis();
-      break;
-  }
-}
-
+// ==========================================
+// 3. MAIN ARDUINO FUNCTIONS
+// ==========================================
 void setup() {
+  Serial.begin(9600);
+  
   pinMode(BTN_COIN, INPUT_PULLUP);
-  pinMode(BTN_SELECT, INPUT_PULLUP);
+  pinMode(BTN_ITEM_SELECT, INPUT_PULLUP); 
   pinMode(BTN_CANCEL, INPUT_PULLUP);
   
-  pinMode(LED_COIN, OUTPUT);
-  pinMode(LED_SELECT, OUTPUT);
-  pinMode(LED_DISPENSE, OUTPUT);
-  
-  Serial.begin(9600);
-  transitionTo(IDLE, "System Power On");
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+
+  updateHardwareIndicators();
+  Serial.println("[SYSTEM BOOT]: State shifted to -> IDLE. Awaiting coin insertion.");
+  stateStartTime = millis();
 }
 
 void loop() {
-  // Read inputs (LOW indicates button is physically pressed down)
-  bool coinPressed = (digitalRead(BTN_COIN) == LOW);
-  bool selectPressed = (digitalRead(BTN_SELECT) == LOW);
-  bool cancelPressed = (digitalRead(BTN_CANCEL) == LOW);
+  unsigned long currentTime = millis();
+  
+  bool currentCoinState   = digitalRead(BTN_COIN);
+  bool currentSelectState = digitalRead(BTN_ITEM_SELECT); 
+  bool currentCancelState = digitalRead(BTN_CANCEL);
 
-  // Global Cancel Rule: Active in intermediate states
-  if (cancelPressed && (currentState == COIN_INSERTED || currentState == ITEM_SELECTED)) {
-    transitionTo(IDLE, "User pressed CANCEL (Refunding)");
-    delay(300); // Simple mechanical button debounce
-    return;
+  if (currentCancelState == LOW && lastCancelState == HIGH) {
+    if (currentState != IDLE) {
+      Serial.println("[TRANSITION]: Action -> CANCEL. Refunding assets.");
+      changeState(IDLE);
+    }
   }
 
-  // State Handler Machine Matrix
   switch (currentState) {
     case IDLE:
-      if (coinPressed) {
-        transitionTo(COIN_INSERTED, "COIN_INSERT BUTTON");
-        delay(300);
+      if (currentCoinState == LOW && lastCoinState == HIGH) {
+        Serial.println("[TRANSITION]: Action -> COIN INSERTED. Balance updated.");
+        changeState(COIN_INSERTED);
       }
       break;
 
     case COIN_INSERTED:
-      if (selectPressed) {
-        transitionTo(ITEM_SELECTED, "SELECT_ITEM BUTTON");
-        delay(300);
+      if (currentSelectState == LOW && lastSelectState == HIGH) {
+        Serial.println("[TRANSITION]: Action -> ITEM SELECTED. Checking inventory levels.");
+        changeState(ITEM_SELECTED);
       }
       break;
 
     case ITEM_SELECTED:
-      // Automatic drop trigger pipeline step
-      transitionTo(DISPENSING, "Auto-processing choice");
+      if (currentTime - stateStartTime >= DELAY_SELECT) {
+        Serial.println("[TRANSITION]: Action -> PROCESSING. Initializing conveyor dropping mechanics.");
+        changeState(DISPENSING);
+      }
       break;
 
     case DISPENSING:
-      // Non-blocking timer tracking release loop window (lasts 2000ms)
-      if (millis() - dispenseStartTime >= 2000) {
-        transitionTo(IDLE, "Dispense Cycle Completed Successfully");
+      if (currentTime - stateStartTime >= DELAY_DISPENSE) {
+        Serial.println("[TRANSITION]: Action -> DISPENSE COMPLETE. Enjoy your item!");
+        changeState(IDLE);
       }
       break;
   }
+
+  lastCoinState   = currentCoinState;
+  lastSelectState = currentSelectState;
+  lastCancelState = currentCancelState;
 }
+
+// ==========================================
+// 4. FUNCTION IMPLEMENTATIONS
+// ==========================================
+void changeState(VendingState newState) {
+  currentState = newState;
+  stateStartTime = millis(); 
+  updateHardwareIndicators();
+}
+
+void updateHardwareIndicators() {
+  switch (currentState) {
+    case IDLE: 
+      digitalWrite(LED_GREEN, HIGH);
+      digitalWrite(LED_YELLOW, LOW);
+      digitalWrite(LED_RED, LOW);
+      break;
+    case COIN_INSERTED: 
+      digitalWrite(LED_GREEN, LOW);
+      digitalWrite(LED_YELLOW, HIGH);
+      digitalWrite(LED_RED, LOW);
+      break;
+    case ITEM_SELECTED: 
+      digitalWrite(LED_GREEN, LOW);
+      digitalWrite(LED_YELLOW, HIGH);
+      digitalWrite(LED_RED, HIGH);
+      break;
+    case DISPENSING: 
+      digitalWrite(LED_GREEN, LOW);
+      digitalWrite(LED_YELLOW, LOW);
+      digitalWrite(LED_RED, HIGH);
+      break;
+  }
+}
+
